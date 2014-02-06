@@ -1,0 +1,113 @@
+Project FINAL: Brainscan 2.0
+wnukry1
+ykim18
+
+--------
+to compile: 
+--------
+ > make clean
+ > make
+
+--------
+to run:
+--------
+
+./BrainScan <datafile>    (e.g., ./BrainScan ./data/matricies/subject01.data)
+
+KEYBOARD CONTROLS:
+	Moving the camera
+		Drag mouse while holding left click to spin left right, up down. Camera will not flip upside down, so will not go further than looking straight up or down.
+		Up arrow key to move forward.
+		Down arrow key to move backwards.
+		Trackball was REALLY difficult to implement.
+	Recoloring!
+		Change the Max color or the Min color, such that a connection with connection 0.0 will be drawn as MinColor, 1.0 will be MaxColor
+			m selects Min color to change
+			M selects Max color to change
+			H increases hue
+			h decreases hue
+			S increases saturation
+			s decreases saturation
+			V increases value (brightness)
+			v decreases value (brightness)
+		Preset color scheme
+			j resets the colors to a nice red -> purple
+			k shows off a change in saturation and value, to the tune of red.
+			l is black and white.
+
+	Filtering
+		You may filter lines by several factors.
+		Min/Max Connection strength
+			Only lines whose connection strength are between the min threshhold and the max threshhold will be draw.
+			By default, the min threshhold is 0., and the max threshhold is 1.
+			[ lowers the minimum threshhold
+			{ (Shift-[) raises the minimum threshhold
+			] lowers the maximum threshhold
+			} (Shift-}) raises the maximum threshhold
+			Attempting to move the min threshhold above the max will also raise the max by the same amount
+			Attempting to move the max threshhold below the min will also lower the min by the same amount
+		t/T to turn off/on drawing only the first ten nodes.
+			t for "draw all."
+			T for "draw the first ten only."
+
+	Coloring modes
+		1: "Universal." This is the important one. Draws lines based on the Color Scheme.
+			'd' to switch to Divergent color scheme.
+			'f' to switch to Spiral color scheme.
+			'g' to switch to a basic scheme where hue, saturation, value are all equal to the connection strength. This is noninteractive.
+		2: Average connection: Each node's color is based on the average of all connections into it.
+	
+LEGEND
+	In the lower left is some text and a triangle.
+	The triangle shows the current color palette.
+		A line with connection strength Minimum Threshhold will be colored like the far left of the triangle.
+		A line with connection strength Maximum Threshhold will be colored like the far right of the triangle.
+		Anything in the middle will be colored like somewhere in the middle.
+	On the left of the triangle is text "Min bound: #" This is the minimum threshhold you have set.
+	On the right of the triangle is text "Max bound: #" This is the maximum threshhold you have set.
+		These are colored as a line with that connection strength would be colored, but saturation and value are fixed to promote readability.
+	Above the triangle are 2 more texts: "Visible min," and "Visible max," each with their corresponding numbers.
+		These are the smallest and largest connections in the data set between your defined min and max bounds. The lines beneath the text show where in the color spectrum these min and max are located.
+		For example, if you only have 1 line that is connection strength 0.5 and 1 that is 0.6, but your min/max are .2 and .8, your Visible min will be .5 and your visible max will be .6.
+		Most of the time these will be very close to your defined min/max, unless your min/max are far away from the data's min/max. Yeah.
+
+BUGS:
+	make clean will remove a file called "Space", so uh, don't put one there if you're attached to it.
+	make clean will remove files ending in a tilde; temporary files from a text editor. Don't get too attached to those, either.
+	Mark never got in touch with me (wnukry1) despite many emails sent his way. He confirmed his email address in person, so we didn't get the wrong one. I don't know if he got hit by a car or what.
+
+OTHER NOTES:
+	We were told not to implement the orientation part of the project.
+	I, uh, divided 1 cpp file into several intuitive .include files, which are #included in the main file SpaceMountain.cpp exactly once.
+		It made sense to group the class definitions, the openGL functions, etc. together.
+		bitsThatWork was supposed to have more than initFile() but nope.
+
+	Included are 2 .data files, the ones I tested the program with.
+		./data/matricies/ is where the provided sample files are
+		the node definition MUST be ./data/COG.txt; it's provided
+
+DISCUSSED DURING PRESENTATION:
+	"Set it so you only draw edges in a user defined range": See FILTERING, in the keyboard controls.
+	"Legend" See legend above
+	"Test data" subjectTEST.txt
+		The first 10 nodes' data are modified. All of Node 1's connections (to the first 10) are 0.1, 2's are 0.2, etc...
+		See "first ten" in keyboard controls.
+	"Draw text"
+		See Legend
+
+	#define DEBUG is used again, so anything wrapped in D(...) only gets executed if DEBUG is #defined at the start of the file.
+		You'll see it up there.
+
+utterly deprecated:
+Other, unimportant coloring modes:
+		` or ~ Default, nonsense
+		//1 Saturation test: All lines are red, saturation is the connection between the lines.
+		2 Hue test: Hue is the connection between lines, looks pretty
+		3 Spiral color test: Draws lines using the spiral color formula,
+		4 Spiral Hue: uses spiral hue lines all based on connection, makes the minimum lightness .5
+		5 Spiral Hue 2: uses spiral hue lines all based on connection, minimum lightness 0.
+
+		7 Divergent test: Line uses the Divergent function, I think it's nonsense
+		8 Divergent lines: Line colors based on connection strength, uses divergent color scale
+		9 Spiral Lines again: #8, using the spiral method. didn't get it to work.
+

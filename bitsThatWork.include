@@ -1,0 +1,164 @@
+Vector3 HSVtoMSHLinConvert(Vector3 head, Vector3 tail, GLfloat percent);
+Vector3 getSpiralColor(Vector3 headC, Vector3 tailC, GLfloat percent);
+extern GLint MODE_Color;
+
+void initFile(char* filename)
+{
+	//Read in node list.
+	D(printf("Initting %s\n",filename);)
+
+	//LineList = new ALineList();
+	FILE* f;
+	f = fopen("./data/COG.txt","r");
+	char buffer[255];
+	int linecount=74,i=0,j=0,isPoly=0;
+	//buffer=
+	//fgets(buffer,255,f);
+	//	D(printf("Line count line: %s ...\n",buffer);)
+	//sscanf(buffer,"%d",&linecount);//first line
+	for(i=0;i<linecount;i++)
+	{
+	fgets(buffer,255,f);//read the line into buffer.
+	GLfloat x,y,z;
+	sscanf(buffer,"%f %f %f",&x,&y,&z);
+	D(printf("x %f y %f z %f\n",x,y,z);)
+	nodes[i].point->x=x;
+	nodes[i].point->y=y;
+	nodes[i].point->z=z;
+	nodes[i].print();
+	filterNodes[i]=i>50;
+	}
+	fclose(f);
+
+	//Read in connections.
+	char bufferlong[600];
+
+	//f = fopen("./data/matrices/subject01.txt","r");
+	f = fopen(filename,"r");
+	for(i=0;i<linecount;i++)
+	{
+		fgets(bufferlong,600,f);//read the line into buffer.
+		char* token = strtok(bufferlong," ");
+		j=0;
+		while (token)
+		{
+			D(printf("Connection[%d][%d]: (%s==%f)\n",i,j,token,atof(token));)
+			connections[i][j]=atof(token);
+			token = strtok(NULL," ");//NULL to make it continue from the last call to strtok instead of reopening char buffer
+			j++;
+		}
+
+	}
+	fclose(f);
+
+
+	if(D(1||)0)
+	{
+		for(int i=0;i<74;i++)
+		for(int j=0;j<74;j++);
+		
+	}
+
+	for(int i=0;i<74;i++)
+	{
+		GLfloat sum = 0.;
+		for(int j=0;j<74;j++)
+		{
+			if(i!=j)
+				sum+=connections[i][j];
+		}
+		avgConnection[i] = sum/73.;
+	}
+
+//init the transformation matricies RGB<->CIELAB, using the white center.
+	toCIELAB[0][0] =  3.240479;toCIELAB[0][1] =   -1.537150;toCIELAB[0][2] =   -0.498535;
+    toCIELAB[1][0] = -0.969256;toCIELAB[1][1] =    1.875992;toCIELAB[1][2] =    0.041556;
+	toCIELAB[2][0] =  0.055648;toCIELAB[2][1] =   -0.204043;toCIELAB[2][2] =    1.057311;
+
+	fromCIELAB[0][0] = 0.412453  ;fromCIELAB[0][1] = 0.357580  ;fromCIELAB[0][2] = 0.180423;
+	fromCIELAB[1][0] = 0.212671  ;fromCIELAB[1][1] = 0.715160  ;fromCIELAB[1][2] = 0.072169;
+	fromCIELAB[2][0] = 0.019334  ;fromCIELAB[2][1] = 0.119193  ;fromCIELAB[2][2] = 0.950227;
+
+	//regular init stuff.
+	camPos = new Vector3(0,0,-3);
+	camLookAt = new Vector3(38.,-6.,50.);
+	div_MinColor = new Vector3(0.,1,1);
+	div_MaxColor = new Vector3(1.,1,1);
+	div_Selected = div_MinColor;
+//	subColor = new Vector3(1.,0.,0.);
+	subColor = NULL;//This used to be the color you'd "highlight" the selected vertex in, and it was easier to just make this NULL and add a check for NULL than it was to remove the code. A triangle gets drawn over the point instead.
+
+}
+
+void sortNodes(int list[], int count)
+{
+
+}
+
+Vector3 colorMethodAbsolute(GLfloat frac);
+/*
+Returns the percentage that query is between small and big.
+it assumes small < big
+*/
+GLfloat percentBetween(GLfloat query, GLfloat small, GLfloat big)
+{
+return (query - small) / (big - small);
+}
+
+/*
+colorMethod(fraction)
+Returns an HSV Vector3 depending on what MODE_Color is set to.
+Frac is the connection strength of the line. This function calculates the absolute %, and calls colorMethodAbsolute
+
+MODE_Color =...
+0: Default (nonsense)
+1: Spiral Color from Min to Max
+2: Divergant Color from Min to Max
+3: H S V each = frac (which ought equal connection)
+*/
+Vector3 colorMethod(GLfloat frac)
+{
+return colorMethodAbsolute(  percentBetween(frac,boundMin,boundMax) );
+}
+
+
+/*
+colorMethod(fraction)
+Returns an HSV Vector3 depending on what MODE_Color is set to.
+Frac is the % between MIN and MAX to get the color from.
+
+MODE_Color =...
+0: Default
+1: Spiral Color from Min to Max
+2: Divergant Color from Min to Max
+3: H S V each = frac (which ought equal connection)
+*/
+Vector3 colorMethodAbsolute(GLfloat frac)
+{
+
+	//MODE_Color = 2;
+	Vector3 out;
+	out.x=0;out.y=0;out.z=0;
+
+	
+	
+	if(MODE_Color == 2)
+	out =div_MinColor->HSVLinearConvert(*div_MaxColor,frac);              //HSVtoMSHLinConvert(*div_MinColor, *div_MaxColor, frac);
+	else if(MODE_Color == 1)
+	out =getSpiralColor(*div_MinColor, *div_MaxColor, frac);
+	else if(MODE_Color == 3)
+	{out.x=frac;out.y=frac;out.z=frac;}
+	else
+	{
+		out.x=0.6666;
+		out.y=1.;
+		out.z=1.;
+	}
+	return out;
+}
+
+/*
+GLfloat fpart(GLfloat in)
+{
+GLfloat out = 
+}*/

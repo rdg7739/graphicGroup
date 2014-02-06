@@ -1,0 +1,343 @@
+
+//void defaultDraw(int i, int j);
+//void hsvDraw(int i, int j);
+
+void drawPalette2(Vector3 headN, Vector3 headC, Vector3 tailN, Vector3 tailC, int div)
+{
+
+}
+
+Vector3 getSpiralColor(Vector3 headC, Vector3 tailC, GLfloat percent)
+{
+	Vector3 color;
+		color.x= headC.x * (1.-percent) + tailC.x * percent; // = new Vector3(headC.x + dh*i,headC.y + ds*i,headC.z + dv * i);
+		color.y= headC.y * (1.-percent) + tailC.y * percent;
+		color.z= headC.z * (1.-percent) + tailC.z * percent;
+	return color;
+}
+
+void drawSpiral(Vector3 headN, Vector3 headC, Vector3 tailN, Vector3 tailC, int div)
+{
+	GLfloat dx, dy, dz, dh, ds, dv;
+/*
+	dx = tailN.x - headN.x;
+	dx /= div;
+	dy = tailN.y - headN.y;
+	dy /= div;
+	dz = tailN.z - headN.z;
+	dz /= div;
+*/
+	Vector3 dN = tailN-headN;
+	dx = dN.x/div;
+	dy = dN.y/div;
+	dz = dN.z/div;
+
+	Vector3 dHSV = tailC-headC;
+	dh = dHSV.x/div;	
+	ds = dHSV.y/div;
+	dv = dHSV.z/div;
+/*
+	dh = tailC.x - headC.x;
+	dh /= div;
+	ds = tailC.y - headC.y;
+	ds /= div;
+	dv = tailC.z - headC.z;
+	dv /= div;
+*/
+	
+//	ds = 1./ div;
+//	dv = 1./ div;
+
+//	glFloat _h,_s,_v;
+	
+	glBegin(GL_LINE_STRIP);
+	for(int i = 0; i <= div; i++ ){
+//	Vector3* color = new Vector3(tailC.x + dh*i,tailC.y + ds*i,tailC.z + dv * i);
+	Vector3* color = new Vector3(headC.x + dh*i,headC.y + ds*i,headC.z + dv * i);
+	D(printf("\nColor at div %i: ",i);)
+	D(color->print();)
+	color->HSVtoRGBcolor();
+	delete (color);
+//	glColor3f (headC.x + dh *i, ds * i, dz * i);
+	glVertex3f(headN.x + (dx * i), headN.y+ (dy * i), headN.z + (dz * i));
+
+	}
+	glEnd();
+}
+
+void DivLinearInteractive(int i, int j)
+{
+	Vector3 head = *(nodes[i].point);
+	Vector3 tail = *(nodes[j].point);
+	GLfloat div = 5.,dx,dy,dz;
+	Vector3 dN = tail-head;
+	dx = dN.x/div;
+	dy = dN.y/div;
+	dz = dN.z/div;
+
+	glBegin(GL_LINE_STRIP);
+	for(GLfloat e = 0; e <= div; e++ ){
+
+
+	//div_MaxColor->print();printf("divMinColor\n");
+	Vector3 color = HSVtoMSHLinConvert(*div_MinColor, *div_MaxColor, e/div);//new Vector3(headC.x + dh*i,headC.y + ds*i,headC.z + dv * i);
+	D(printf("\nColor at div %i: ",e);)
+	//color.print();
+	color.HSVtoRGBcolor();
+
+	glVertex3f(head.x + (dx * e), head.y+ (dy * e), head.z + (dz * e));
+
+	}
+	glEnd();
+}
+
+//8
+void DivLinearConnectInteractive(int i, int j)
+{
+	Vector3 head = *(nodes[i].point);
+	Vector3 tail = *(nodes[j].point);
+	GLfloat div = 5.,dx,dy,dz;
+	Vector3 dN = tail-head;
+	dx = dN.x/div;
+	dy = dN.y/div;
+	dz = dN.z/div;
+
+	glBegin(GL_LINE_STRIP);
+	Vector3 color = HSVtoMSHLinConvert(*div_MinColor, *div_MaxColor, connections[i][j]);//new Vector3(headC.x + dh*i,headC.y + ds*i,headC.z + dv * i);
+	D(printf("\nColor at div %i: ",e);)
+	//color.print();
+	color.HSVtoRGBcolor();
+
+	head.glVertex();
+	tail.glVertex();
+	glEnd();
+
+}
+
+void SpiralLinearConnectInteractive(int i, int j)
+{
+	Vector3 head = *(nodes[i].point);
+	Vector3 tail = *(nodes[j].point);
+	GLfloat div = 5.,dx,dy,dz;
+	Vector3 dN = tail-head;
+	dx = dN.x/div;
+	dy = dN.y/div;
+	dz = dN.z/div;
+
+	glBegin(GL_LINE_STRIP);
+	Vector3 color = getSpiralColor(*div_MinColor, *div_MaxColor, connections[i][j]);//new Vector3(headC.x + dh*i,headC.y + ds*i,headC.z + dv * i);
+	D(printf("\nColor at div %i: ",e);)
+	//color.print();
+	color.glColor();
+
+	head.glVertex();
+	tail.glVertex();
+	glEnd();
+
+}
+
+
+void drawSpiralDefault(int i, int j)
+{
+
+	Vector3* col1 = div_MinColor;
+	Vector3* col2 = div_MaxColor;
+	drawSpiral(*(nodes[i].point),*col1,*(nodes[j].point),*col2,3);
+}
+
+void drawSpiralInteractive(int i, int j)
+{
+
+	Vector3* col1 = new Vector3(.8,1.,1.);
+	Vector3* col2 = new Vector3(.5,.8,1.);
+	drawSpiral(*(nodes[i].point),*col1,*(nodes[j].point),*col2,3);
+}
+
+void drawSpiralHue(int i, int j)
+{
+	GLfloat min = .5;
+	Vector3* col2 = new Vector3(connections[i][j],connections[i][j]*(1-min)+min,connections[i][j]*(1-min)+min);
+	Vector3* col1 = new Vector3(connections[i][j],connections[i][j]*(1-min)+min,connections[i][j]*(1-min)+min);
+//	drawSpiral(*(nodes[i].point),*col1,*(nodes[j].point),*col2,3);
+
+		glBegin(GL_LINE_STRIP);
+		col1->HSVtoRGBcolor();
+		nodes[i].glVertex();
+		col2->HSVtoRGBcolor();
+		nodes[j].glVertex();
+		glEnd();		
+}
+
+void drawSpiralHue2(int i, int j)
+{
+	GLfloat min = .0;
+	Vector3* col2 = new Vector3(connections[i][j],connections[i][j]*(1-min)+min,connections[i][j]*(1-min)+min);
+	Vector3* col1 = new Vector3(connections[i][j],connections[i][j]*(1-min)+min,connections[i][j]*(1-min)+min);
+//	drawSpiral(*(nodes[i].point),*col1,*(nodes[j].point),*col2,3);
+
+		glBegin(GL_LINE_STRIP);
+		col1->HSVtoRGBcolor();
+		nodes[i].glVertex();
+		col2->HSVtoRGBcolor();
+		nodes[j].glVertex();
+		glEnd();		
+}
+
+void drawAvgConnect(int i, int j)
+{
+	glBegin(GL_LINE_STRIP);
+	colorMethod(avgConnection[i]).HSVtoRGBcolor();
+	nodes[i].glVertex();
+	colorMethod(avgConnection[j]).HSVtoRGBcolor();
+	nodes[j].glVertex();
+	glEnd();
+/*
+	Vector3* col2 = new Vector3(avgConnection[i],avgConnection[i],avgConnection[i]);
+	Vector3* col1 = new Vector3(avgConnection[j],avgConnection[j],avgConnection[j]);
+	drawSpiral(*(nodes[i].point),*col1,*(nodes[j].point),*col2,3);*/
+}
+
+
+//wat is this
+Vector3 colorMiddle(Vector3 head, Vector3 tail, GLfloat percent)
+{
+
+head.print();
+tail.print();
+(head*percent).print();
+(head * percent + tail * (1. - percent)).print();
+return head * percent + tail * (1. - percent);
+
+}
+
+void divergentDraw(int i, int j)
+{
+
+}
+
+void defaultDraw(int i, int j)
+{
+		if(i==j) return;
+		glBegin(GL_LINE_STRIP);
+		div_MinColor->HSVtoRGBcolor();
+		nodes[i].glVertex();
+//		glColor3f(.5,.5,1.);
+		div_MaxColor->HSVtoRGBcolor();
+		nodes[j].glVertex();
+		glEnd();
+}
+
+//All red, saturation == connection stranth
+void hsvSaturationDraw(int i, int j)
+{
+
+
+		if(i==j) return;
+
+		Vector3* iV = new Vector3(0.,1.,connections[i][j]);
+		Vector3* jV = new Vector3(0.,1.,connections[j][i]);
+
+		glBegin(GL_LINE_STRIP);
+		iV->HSVtoRGBcolor();
+		nodes[i].glVertex();
+		jV->HSVtoRGBcolor();
+		nodes[j].glVertex();
+		glEnd();		
+
+}
+
+void universal(int i, int j)
+{
+
+	Vector3 head = *(nodes[i].point);
+	Vector3 tail = *(nodes[j].point);
+
+	glBegin(GL_LINE_STRIP);
+	Vector3 color = colorMethod(connections[i][j]);//new Vector3(headC.x + dh*i,headC.y + ds*i,headC.z + dv * i);
+	D(printf("\nColor at div %i: ",e);)
+	//color.print();
+	color.HSVtoRGBcolor();
+
+	head.glVertex();
+	tail.glVertex();
+	glEnd();
+
+}
+
+//hue is connection, everything 1
+void hsvHueDraw(int i, int j)
+{
+		if(i==j) return;
+
+	D(printf("connect ij %f\n",connections[i][j]);)
+		Vector3* iV = new Vector3(connections[i][j],1.,1.);
+		Vector3* jV = new Vector3(connections[j][i],1.,1.);
+
+
+
+		//colorMiddle(*iV,*jV,.7);
+
+		glBegin(GL_LINE_STRIP);
+		iV->HSVtoRGBcolor();
+		nodes[i].glVertex();
+		jV->HSVtoRGBcolor();
+		nodes[j].glVertex();
+		glEnd();		
+}
+
+
+int mayDraw(int i, int j)
+{
+
+int maxnode = 75;
+if(MODE_Ten) maxnode = 10;
+return (i<maxnode and j < maxnode and connections[i][j] >= boundMin and connections[i][j] <= boundMax);
+//return(i == SelectedNode and j == SelectedNode+1);
+//return (filterNodes[i]);
+//return (i<j and connections[i][j]>MODE_MinStrength);
+return (i<j);
+}
+
+
+void drawNodes(int i, int j)
+{
+
+
+if(!mayDraw(i,j)) return;
+
+if(connections[i][j]>seenMax)seenMax=connections[i][j];
+if(connections[i][j]<seenMin)seenMin=connections[i][j];
+
+if(MODE_Drawmode == DM_SPIRAL)
+{
+	switch(MODE_DrawFunc)
+	{
+	case 1:
+		//hsvSaturationDraw(i,j);break;
+		universal(i,j);break;
+	case 2:
+		drawAvgConnect(i,j);break;
+
+	/*case 2:
+		hsvHueDraw(i,j);break;
+	case 3:
+		drawSpiralDefault(i,j);break;
+	case 4:
+		drawSpiralHue(i,j);break;
+	case 5:
+		drawSpiralHue2(i,j);break;
+	
+	case 7:
+		DivLinearInteractive(i,j);break;
+	case 8:
+		//printf("DLCI");
+		DivLinearConnectInteractive(i,j);break;
+	case 9:
+		SpiralLinearConnectInteractive(i, j);break;*/
+	default:
+		defaultDraw(i,j);break;
+	}
+}
+//defaultDraw(i,j);
+
+}

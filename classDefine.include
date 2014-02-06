@@ -1,0 +1,717 @@
+#include <cmath>
+#include <string>
+	using namespace std;
+
+GLfloat toCIELAB[3][3];//transformation matrix between RGB and CIELAB
+GLfloat fromCIELAB[3][3];//reverse transformation
+GLfloat seenMin = 1.;
+GLfloat seenMax = 0.;
+GLfloat boundMin = 0.;
+GLfloat boundMax = 1.;
+
+//Needed because haste later on.
+GLfloat myMin(GLfloat x, GLfloat y, GLfloat z)
+{
+if(x < y and x < z) return x;
+if(y < z) return y;
+return z;
+}
+GLfloat myMax(GLfloat x, GLfloat y, GLfloat z)
+{
+if(x > y and x > z) return x;
+if(y > z) return y;
+return z;
+}
+
+
+class Vector3
+{
+
+	public:
+	GLfloat x;//R//H
+	GLfloat y;//G//S
+	GLfloat z;//B//V
+
+		Vector3()
+			{x=0.; y=0.; z=0.;}
+		Vector3(GLfloat dx, GLfloat dy, GLfloat dz)
+			{x=dx; y=dy; z=dz;}
+
+		GLfloat getx()
+		{return x;}
+		GLfloat gety()
+		{return y;}
+		GLfloat getz()
+		{return z;}
+		/*
+			setX, setY, setZ
+				Self-documenting.
+		*/
+		void setx(GLfloat _x)
+		{x = _x;}
+		void sety(GLfloat _y)
+		{y = _y;}
+		void setz(GLfloat _z)
+		{z = _z;}
+
+	Vector3 operator+(Vector3 other)//Never got this to work. *shrug*
+	{
+		Vector3 result;
+		result.x=x+other.x;
+		result.y=y+other.y;
+		result.z=z+other.z;
+		return result;
+	}
+	Vector3 plus(Vector3 other)//Never got this to work. *shrug*
+	{
+		Vector3 result;
+		result.x=x+other.x;
+		result.y=y+other.y;
+		result.z=z+other.z;
+		return result;
+	}
+	void plusequal(Vector3 other)//Never got this to work. *shrug*
+	{
+		x+=other.x;
+		y+=other.y;
+		z+=other.z;
+	}
+
+	Vector3 operator-(Vector3 other)
+	{
+		Vector3 result;
+		result.x=x-other.x;
+		result.y=y-other.y;
+		result.z=z-other.z;
+		return result;
+	}
+	Vector3 minus(Vector3 other)
+	{
+		Vector3 result;
+		result.x=x-other.x;
+		result.y=y-other.y;
+		result.z=z-other.z;
+		return result;
+	}
+	Vector3 operator*(Vector3 other)//Vector multiplication isn't even really a thing.
+	{
+		Vector3 result;
+		result.x=x*other.x;
+		result.y=y*other.y;
+		result.z=z*other.z;
+		return result;
+	}
+	Vector3 operator*(GLfloat other)//Vector multiplication isn't even really a thing.
+	{
+		Vector3 result;
+		result.x=x*other;
+		result.y=y*other;
+		result.z=z*other;
+		return result;
+	}
+
+	/*
+		cross(vec3) 
+		Cross product of this and other.
+	*/
+	Vector3 cross (Vector3 other)
+	{
+		Vector3 result;
+		result.x=y*other.z-z*other.y;
+		result.y=z*other.x-x*other.z;
+		result.z=x*other.y-y*other.x;
+		return result;
+	}
+
+	GLfloat distanceTo(Vector3 other)
+	{
+	return (minus(other)).magnitude();
+	}
+	
+	/*
+		dot(vec3)
+		Got into this project, realized I didn't need the dot product of anything just yet
+	*/
+	GLfloat dot (Vector3 other)
+	{
+	return 1.;
+	}
+
+	
+	void print()
+	{
+		//return;//TODO: Less cheap fix.
+		printf("[%f,%f,%f]",x,y,z);
+	}
+
+	void print(char* out)
+	{
+		//return;//TODO: Less cheap fix.
+		sprintf(out,"[%f,%f,%f]",x,y,z);
+	}
+
+
+	/*
+		glColor
+		DEPRECATED
+		This used to be a convenience call to just glColor3f(...) on our X Y Z (r, g, b)
+			But then I reread the specs, noted that the file would be in HSV, and yeah.
+		Call HSVtoRGB instead, unless you're super-duper sure this Vector3 contains RGB values from 0. -> 1.
+		Even then, that's pretty weird.
+	*/
+	void glColor()
+	{
+		//if(x>1)//if it's 0 we're out of luck anyways, but that'd only come from a programming error.
+		//HSVtoRGB().glColor();
+		//else
+		glColor3f(x,y,z);
+	}
+
+	/*
+		glVertex
+		Convenience call to glVertex3f(...) using this vector's x y z.
+		Make sure you're not calling this on something that's supposed to be a color vector, though y'know, that won't be a runtime error.
+	*/
+	void glVertex()
+	{
+	glVertex3f(x,y,z);
+	}
+
+	//makes sure H is between 0 and 1. Weird, yet cool things happen otherwise.
+	void bindH()
+	{
+	while(x<0.0)x+=1.0;
+	while(x>1.0)x-=1.0;
+	}
+	void bindX(){bindH();}void bindY(){bindS();}void bindZ(){bindV();}
+	void bindS()
+	{
+	if(y<0.0)y=0.;
+	if(y>1.0)y=1.0;
+	}	
+	void bindV()
+	{
+	while(z<0.0)z=.0;
+	while(z>1.0)z=1.0;
+	}
+	
+	void bindAll()
+	{bindX();bindY();bindZ();}
+
+
+	/*
+		Magnitude
+		
+	*/
+	GLfloat magnitude()
+	{
+		return sqrt(x*x+y*y+z*z);
+	}
+
+	/*
+		normalize
+		Returns a NEW vector that is a unit vector with this vector's orientation, or some mumbo jumbo.
+		vec.normalize()*vec.magnitude() == vec, at least functionally and assuming no floating errors.
+	*/
+	Vector3 normalize()
+	{
+		Vector3 result;
+		result.x = x/magnitude();
+		result.y = y/magnitude();
+		result.z = z/magnitude();
+		return result;
+	}
+	
+	void set(GLfloat a, GLfloat b, GLfloat c)
+	{x=a;y=b;z=c;}
+
+	Vector3 HSVtoRGBvec2()
+	{
+	int debg = 0;
+	//if(x<.68 and x>.65)debg=1;
+
+	if(debg)printf("X(hue)=%f. ",x);
+	Vector3 out;
+	out.x=0.;out.y=0.;out.z=0.;		
+	GLfloat h=x*360.,s=y,v=z;
+	while(h<0.)h+=360.;
+	while(h>360.)h-=360.;
+
+		int i;
+		float f, p, q, t;
+
+		if( s == 0 ) 
+		{
+			// achromatic (grey)
+			out.x = out.y = out.z = v;
+			return out;
+		}
+
+		h /= 60.;			// sector 0 to 5
+		i = floor( h );
+		
+		if(debg)printf("i (floor h(%f)) = %d. ",h,i);
+		f = h - i;			// fractional part of h
+		p = v * ( 1 - s );
+		q = v * ( 1 - s * f );
+		t = v * ( 1 - s * ( 1 - f ) );
+
+		switch( i ) 
+		{
+		case 0:
+			out.x = v;
+			out.y = t;
+			out.z = p;
+			break;
+		case 1:
+			out.x = q;
+			out.y = v;
+			out.z = p;
+			break;
+		case 2:
+			out.x = p;
+			out.y = v;
+			out.z = t;
+			break;
+		case 3:
+			out.x = p;
+			out.y = q;
+			out.z = v;
+			break;
+		case 4:
+			out.x = t;//to Q from T
+			out.y = p;
+			out.z = v;
+			break;
+		default:		// case 5:
+			out.x = v;
+			out.y = p;
+			out.z = q;
+			break;
+		}
+	if(debg){out.print();printf("\n");}
+	return out;
+	}
+
+	Vector3 HSVtoRGBvec()
+	{
+
+		return HSVtoRGBvec2();
+		//H[0,360),S[0,1],V[0,1]
+		Vector3 result;
+		result.x=0.01;result.y=0.01;result.z=0.01;
+/*
+		if(x>0 and x<1)
+		{//this is only the case if this is in RGB already.
+			result.x=x;
+			result.y=y;
+			result.z=z;
+			return result;
+		}*///this was causing hella issues
+		//printf("float test x=%f, and this %f\n",x+.001,fmod(.112,.1)+.1);
+
+		while(x>=1.)x-=1.;//because if I check constraints here, I don't need to worry about user's input in the initial text file
+		while(x<0)x+=1.;//And while because it might be more than 1 above, etc.
+		while(y<0)y=0;//Never trust the users.
+		while(y>1)y=1;//Why do you even give code to them?
+		while(z<0)z=0;//They'll just break your precious programs.
+		while(z>1)z=1;//Or worse, they'll deface your legacy by rewriting portions and adding on!
+
+
+		GLfloat tso = x*360.;//ThreeSixzerO
+
+		//printf("HSVtoRGB: my H=%f\n",x);
+		GLfloat hmod = x ;// 60.;//HECK IF I KNOW AT THIS POINT
+		int hmodInt = floor(hmod*6.);//For rounding.
+		GLfloat hprime = x;//*60.;
+
+		#define ABS(X) ((X)<0?-(X):(X))
+		//there were issues where <cmath>'s abs() was returning an int even though... yeah this is totes bs.
+
+		GLfloat chroma = z * y;
+		//GLfloat intermed = chroma * (1. - ABS( fmod(hmod, 2.) - 1.) );
+		GLfloat intermed = chroma * (1. - ABS( fmod(hprime, 2.) - 1.) );
+
+
+
+
+		GLfloat theABS = 1.;//There was an issue where "abs( fmod(hmod, 2.) - 1.)" is a float technically but "1. -abs( fmod(hmod, 2.) - 1.)" is an int.
+			//RESOLVED: See above, <cmath>'s abs, on a GLfloat and a float, returned an int, even though it's supposed to return a float. abs(...) got typecasted for the string printing, which is why #3 worked and #4 didn't.
+		theABS = ABS(fmod(hmod, 2.)-1.);
+
+		//this next line I won't even bother putting in a D(). It's garbage at this point, trying to resolve the ABS problem.
+		//printf("Breaking down intermed. fmod(hmod,2.)=%f, -1.=%f, abs that is %f, 1. - that =%f\n",			fmod(hmod,2.),			fmod(hmod,2.)-1.,			theABS, // abs( fmod(hmod, 2.) - 1.), 			1.-theABS); // ((GLfloat)1.) - (GLfloat)abs( fmod(hmod, 2.) - 1.) );//this lien right here.
+		D(printf("HSVtoRGB: my H=%f so hmod=%f and hmodInt=%d and fmod(hmod)=%f, chroma=%f and intermed=%f\n",x,hmod,hmodInt,fmod(hmod,2.),chroma,intermed);)
+
+
+		//printf("hmod, hmodint %f %d: ",hmod, hmodInt);
+
+
+			printf("X is %.4f, \n",x);
+			if(hmod<1./6.)
+				{result.x=chroma; result.y=intermed; result.z = 0.;}
+			else if(hmod<2./6.)
+				{result.x=intermed; result.y=chroma; result.z = 0.;}
+			else if(hmod<3./6.)
+				{result.x = 0.; result.y=chroma; result.z=intermed;}
+			else if(hmod<4./6.)
+				{result.x = 0.; result.y=intermed; result.z=chroma;}
+			else if(hmod<5./6.)
+				{result.x=intermed; result.y = 0.; result.z=chroma;}
+			else
+				{result.x=chroma; result.y = 0.; result.z=intermed;}
+		
+		result.x+=z-chroma;
+		result.y+=z-chroma;
+		result.z+=z-chroma;
+
+		return result;
+	}
+
+
+	/*
+		HSVtoRGB
+		calls glColor3f(...) with the resulting numbers from converting the HSV attributes to RGB.
+		This used to return a vector3 with RGB values instead of HSV but this was changed late in the game.
+	*/
+	void HSVtoRGBcolor()
+	{
+//		Vector3 result = HSVtoRGBvec();
+//		glColor3f(result.x,result.y,result.z);
+		HSVtoRGBvec().glColor();
+		//return result;
+	}
+
+	//this is a mess, don't bother lookign in here
+	Vector3 RGBtoHSV()
+	{
+	Vector3 output;
+		GLfloat min, max, delta;
+
+		min = myMin( x, y, z );
+		max = myMax( x, y, z );
+		output.z = max;				// v
+		delta = max - min;
+
+		if( max != 0 )
+			output.y = delta / max;		// s
+		else {
+			// r = g = b = 0		// s = 0, v is undefined
+			output.y = 0.;//s
+			output.x = 0.;//h
+			
+			return output;
+		}
+
+		if( x == max )
+			output.x = ( y - z ) / delta;		// between yellow & magenta
+		else if( y == max )
+			output.x = 2. + ( z - x ) / delta;	// between cyan & yellow
+		else
+			output.x = 4. + ( x - y ) / delta;	// between magenta & cyan
+
+		//output.x *= 60.;				// degrees
+		//if( output.x < 0. )
+		//	output.x += 360.;
+		//output.x/=360.;
+		return output;
+	}
+
+	//transform matrix is ROW COLUMN
+	Vector3 matrixMultiply(GLfloat transform[3][3])
+	{
+		Vector3 out;
+		out.x = 0;out.y=0;out.z=0;
+		int i = 0, row = 0;
+		
+		for(i=0;i<=2;i++)
+		{
+			out.x += transform[0][i]*x;
+			out.x += transform[0][i]*y;
+			out.x += transform[0][i]*z;
+
+			out.y += transform[1][i]*x;
+			out.y += transform[1][i]*y;
+			out.y += transform[1][i]*z;
+
+			out.z += transform[2][i]*x;
+			out.z += transform[2][i]*y;
+			out.z += transform[2][i]*z;
+
+		}
+
+		return out;
+	}
+
+	Vector3 instead(GLfloat a, GLfloat b, GLfloat c)
+	{
+	Vector3 out;
+	out.set(x,y,z);
+	if(a!=-999)out.x=a;
+	if(b!=-999)out.y=b;
+	if(c!=-999)out.z=c;
+	return out;
+	}
+
+	Vector3 RGBtoCIELAB()//CIELAB: x=L*, y=a*, z=b*
+	{return matrixMultiply(toCIELAB);}
+	Vector3 CIELABtoRGB()
+	{return matrixMultiply(fromCIELAB);}
+
+	Vector3 CIELABtoMSH()
+	{
+		Vector3 out; //x=M, y=s, z=h
+		out.x = sqrt(x*x + y*y + z*z);
+		out.y = acos(x/out.x);
+		out.z = atan(out.y/out.z);
+		D(printf("CIELAB to MSH");out.print();out.MSHtoCIELAB().CIELABtoRGB().print();CIELABtoRGB();printf("\n");		)
+
+		return out;
+	}//xmdhere
+
+	Vector3 MSHtoCIELAB()
+	{
+		//printf("MSH to CIELAB");
+		//exit(1);
+		Vector3 out;
+		out.x = x * cos(y);
+
+		//printf("cos y (%f)",cos(y));
+		//printf("sin y (%f)",sin(y));
+		//printf("sin z (%f)",sin(z));
+		out.y = x * sin(y)*cos(z);
+		out.z = x * sin(y)*sin(z);
+		//print();out.print();printf("MSH to CIELAB\n");
+
+		D(printf("MSH to CIELAB");print();out.print();printf("/MtC\n");)
+		return out;
+	}
+
+	Vector3 HSVLinearConvert(Vector3 other, GLfloat percent)
+	{
+		Vector3 out;
+		out.x = 0.;
+		out.y = 0.;
+		out.z=0.;
+		if(percent<0 or percent>1)
+		{
+			return out;
+		}
+		if(percent == .5)
+		{
+		out.x=x;
+		out.z=percent*z+(1.-percent)*other.z;
+		out.y=0.;
+		}
+		if(percent<.5)
+		{
+			out.x=x;
+			out.y=((.5-percent)*2.)*y;
+			out.z=percent*other.z+(1.-percent)*z;
+		}
+		else if(percent>.5)
+		{
+			out.x=other.x;
+			out.y=((percent-.5)*2.)*other.y;
+			out.z=percent*other.z+(1.-percent)*z;
+		}
+
+		return out;
+		
+	}
+	
+	Vector3 MSHLinearConvert(Vector3 other, GLfloat percent)
+	{
+		Vector3 out;
+		out.x = 0.;
+		out.y = 0.;
+		out.z=0.;
+		D(printf("\n");print();other.print();printf("MSHLinearConvert IN %%(%f)percent\n",percent);)
+		//if(x=0.)x=0.00001;
+		if(percent<0)
+		{
+			//printf("PERCENT < 0, %f\n ",percent);
+			//exit(1);
+			out.x = x;
+			out.y = 0.;
+			out.z=x;
+		}
+		else if(percent<.5)
+		{
+			//print();printf("percent < .5 %f",percent);
+			out.x = x;
+			out.z = z;
+			//out.y = 0.01;//(percent * 2.) * y;
+			out.y=1.;
+			D(printf("LOWy = %f\n",out.y);)
+		}
+		else if(percent>.5)
+		{
+			//other.print();printf("percent > .5 %f ",percent);
+			out.x = other.x;
+			out.z = other.z;
+			out.y = ((percent-.5) * 2.) * other.y;
+
+			out.y=1.;
+			D(printf("HIGHy = %f\n",out.y);)
+		}
+		else if(percent == .5)
+		{
+			//printf("percent = .5 %f\n",percent);
+			out.x=other.x;
+			out.y=0.;
+			out.z=other.z;
+		}
+		D(out.print();printf("MSHLinearConvert Out!\n");)
+		return out;
+	}
+
+	//Just a convenience.
+	void HSVtoMSH()
+	{
+	
+	
+	}
+	/*
+	std::string toString()//Researching this, I need to use a StringStream to make the string and honestly I don't care enough. Printing it out isn't important.
+	{
+		std::string result = "["+x+","+y+","+z+"]";
+		return result;
+	}*/
+	
+};
+
+
+/*HSVtoMSHLinConvert
+IN: Head (HSV), Tail (HSV), GLfloat percent
+Gets the color <percent> along the line from Head to Tail, using a linear MSH thing.
+OUT: Vector3 (RGB), the intermediate color.
+*/
+Vector3 HSVtoMSHLinConvert(Vector3 head, Vector3 tail, GLfloat percent)
+{
+	Vector3 hMSH = head.HSVtoRGBvec().RGBtoCIELAB().CIELABtoMSH();
+	Vector3 tMSH = tail.HSVtoRGBvec().RGBtoCIELAB().CIELABtoMSH();
+	Vector3 oMSH = hMSH.MSHLinearConvert(tMSH,percent);
+	Vector3 oHSV = oMSH.MSHtoCIELAB().CIELABtoRGB().RGBtoHSV();
+	return oHSV;
+}
+
+class Vertex {
+
+
+public:
+
+	Vector3* point;
+//	Vector3* attribute; 
+	std::string name;
+
+	Vertex()
+	{point = new Vector3();/* attribute = new Vector3();*/name="nullname";}
+	Vertex(Vector3* p, string myname)
+	{point = (p);name=myname;}
+
+
+	void print()
+	{
+	return;
+		printf("<");
+		point->print();
+		printf(">");
+	}
+	
+	/*
+		convenience wrapper for no reason.
+	*/
+	void glVertex()
+	{
+	point->glVertex();
+	}
+
+
+	/*
+		color is a bool, true if "use this vertex's own color", false if "use subColor"
+		This functionality got deprecated out. It used to be for displaying which vertex was selected, but I went with the fancier triangle cursor approach.
+	*/	
+	void glVertex(int color, Vector3* subColor)
+	{
+
+		point->glVertex();
+	
+	}
+
+
+};
+
+class Line{
+	public: 
+	//std::vector<Vertex> verts;
+	//int isPoly;
+	Vertex* head;//DO refer to these.
+	Vertex* tail;//Lazy programming means PUBLIC VARIABLES
+	Line()
+	{;}
+
+	/*int add(Vertex vx)
+	{
+		verts.push_back(vx);
+	}*/
+	/*
+		looking back, I never used segment(i). I should have.
+	*/
+
+
+	void print()
+	{
+	return;
+		int i = 0;
+	
+		head->print();
+		tail->print();
+		printf("\n");
+	}
+
+};
+
+
+
+typedef Vector3 Color;
+
+Vertex nodes[74];
+
+int filterNodes[74];
+GLfloat avgConnection[74];
+
+GLfloat connections[74][74];
+
+
+
+char buffer[600];
+
+Vector3 *camPos;
+Vector3 *camDir;//don't use these, they were nice in the preivous projects so this is how I started thinking.
+Vector3 *camUp;
+Vector3 *camRight;
+Vector3 *camLookAt;
+Vector3* subColor; //this is the color to apply
+
+Vector3* div_MinColor;//"interactive" means changing min and max to these colors. A connection of 0.0 will be this color.
+Vector3* div_MaxColor;//A connection of 1.0 will be this color, and the middle will be a mix.
+Vector3* div_Selected;//this will point to either divMinColor or divMaxColor depending on user input
+
+#define DM_SPIRAL 1
+
+int MODE_WhiteLine = 0;
+int MODE_Ten = 0;
+//GLfloat MODE_MinStrength = .0;//if the connection between 2 nodes is less than this, don't bother drawing it.
+int MODE_Drawmode = DM_SPIRAL;//The overarching mode (Spiral, Divergant, we weren't asked to implement the orientation one)
+int MODE_DrawFunc = 1;//The numbered function.
+char drawFuncName[40];//if we want to display names for each function.
+int SelectedNode = 5;//magic number for now
+
+float projDist = 1.;//don't care
+float viewWidth = 4;//don't care
+float viewHeight = 3;//don't care
+
+int selVertex = 0;//Which vertex we're pointing to
+int selLine = 0;//Which line we're choosing a vertex from.
+int rotY=0;

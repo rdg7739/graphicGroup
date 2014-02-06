@@ -1,0 +1,383 @@
+void drawString(char* str);
+void drawLegend();
+extern GLfloat zoom; 
+extern GLfloat tbx, tdx, tdy;
+extern GLfloat tby;
+
+GLint MODE_Color = 1;
+GLint  mouseButton = -1;//trackball vars
+GLfloat camangleX = 0.,camangleY=0.;
+
+void display(void)
+{
+	seenMin = 1000.;
+	seenMax = -1000.;
+	int debugint = 0;
+	D(debugint=1;)//so we can say if debug stuff.
+
+char str[60];
+
+	glClearColor(0.0,0.0,0.0,1);
+  	glClear(GL_COLOR_BUFFER_BIT);
+//glutBitmapCharacter(GLUT_BITMAP_8_BY_13, 'b');
+
+    glPushMatrix();
+
+
+//tbMatrix();	
+	gluPerspective(60,1,.1,200);
+	//glRotatef(rotY,0,1,0);
+  
+			D(printf("tdx %f tdy %f\n",tdx,tdy);)
+    
+
+
+//---------------
+//This is where we pretend we're trackball when we're really not.
+//Seriously, I spent like six hours this semester throwing things at trackball with nothing to show for it.
+
+		#define CONVERSIONFACTOR 4
+		#define CONVERSIONFACTOR_Y 4
+			//camdist was a constant that was 30 before
+		GLfloat CAMDIST = 32.;
+		//camerapos[0]=carpos[0]-(cameradistance*sin(carangle));
+		//camerapos[2]=carpos[2]-(cameradistance*cos(carangle));
+
+		camangleX += CONVERSIONFACTOR * tdx;
+		camangleY += CONVERSIONFACTOR_Y * tdy;
+
+		#define myABS(X) ((X)<0?-(X):(X))
+
+		if(camangleY <= -M_PI/2) camangleY = -M_PI/2+.01;
+		if(camangleY >= M_PI/2) camangleY = M_PI/2-.01;
+		camPos->y=camLookAt->y+CAMDIST*sin(camangleY);//sin(camangleY);
+
+		CAMDIST -= myABS(CAMDIST*sin(camangleY));//I don't get this line.
+
+		//printf("camangleX %f camangleY %f\n",camangleX,camangleY);
+
+		camPos->x=camLookAt->x+CAMDIST*sin(camangleX);//sin(camangleX);
+		camPos->z=camLookAt->z+CAMDIST*cos(camangleX);
+//------------------
+	gluLookAt(camPos->x,camPos->y,camPos->z,camLookAt->x,camLookAt->y,camLookAt->z,0.,1.,0.);
+
+	
+	//glTranslatef(camLookAt->x,camLookAt->y,camLookAt->z);
+
+	int i = 0, j = 0, ai=0,aj=0;	
+	int nodecount = 74;//MAGIC NUMBER
+	int sortedNodes[nodecount];
+	
+	for(i=0;i<nodecount;i++)
+	{
+		sortedNodes[i]=i;
+	}
+	sortNodes(sortedNodes,74);
+
+
+	for(i=0;i<nodecount;i++)
+	{
+		for(j=i;j<nodecount;j++)
+		{
+		drawNodes(i,j);
+		}
+	}
+	
+
+	if(MODE_WhiteLine)
+	{
+		glBegin(GL_LINE_STRIP);
+		glColor3f(1.,1.,1);
+		camLookAt->glVertex();
+		glVertex3f(0,0,0);
+		glVertex3f(-42.,-10.,50.);
+		glEnd();
+	}
+
+
+	//Draw the triangle over the point.
+/*	
+	if(selLine>=0 and selLine< LineList->size() )
+	{
+		D(printf("We've got a valid line \n");)
+		if(selVertex >=0 and selVertex < LineList->at(selLine).size() )
+		{
+			D(printf("And a valid vertex!\n");)
+			Vector3 addition;
+			addition.x = -.2;
+			addition.y=.5;
+			addition.z=0;
+			glBegin(GL_POLYGON);
+			LineList->at(selLine).verts.at(selVertex).attribute->HSVtoRGB();//Make it the color of the vertex because visibility!
+			LineList->at(selLine).verts.at(selVertex).glVertex(-1,NULL);
+	
+			( *(LineList->at(selLine).verts.at(selVertex).point)+addition ).glVertex();//this is an ugly way to add this stuff together.
+			addition.x=.2;
+			( *(LineList->at(selLine).verts.at(selVertex).point)+addition ).glVertex();//this is the same ugly way to add this stuff together.
+			glEnd();
+		}
+	}
+*/
+
+/*
+//glPushMatrix();
+//glTranslatef(0,0,1);
+
+//glPopMatrix();
+*/
+
+	
+
+    glPopMatrix();
+
+
+	drawLegend();
+
+	
+
+
+//	glFrustum (-30, 30, -30, 30, -30, 30);
+	glutSwapBuffers();
+}
+
+
+//legend
+void drawLegend()
+{
+
+
+glMatrixMode( GL_PROJECTION ) ;
+glPushMatrix() ; // save
+glLoadIdentity();// and clear
+glMatrixMode( GL_MODELVIEW ) ;
+glPushMatrix() ;
+glLoadIdentity() ;
+	//Draw the triangle (legend) in the lower left
+	if(div_MinColor!=NULL and div_MaxColor!=NULL)
+	{
+		GLfloat legendsubdiv = 5.0;
+		glTranslatef(-1,-.90,0);
+
+		GLfloat _div = 0.0;
+		GLfloat x=0.0, dx = 0.0, y=0.0, _y=0.0;
+		//black out
+		glBegin(GL_POLYGON);
+		glColor3f(0.,0,0);
+		glVertex3f(0,-.2,0);
+		glVertex3f(0,.25,0);
+		glVertex3f(.77,.25,0);
+		glVertex3f(.77,-.2,0);
+		glEnd();
+		
+		//draw the palette triangle
+		GLfloat increment = 1./256.;
+		for(_div=0.0;_div<10.0;_div+=increment)
+		{
+
+			dx=(_div/10.0);
+			x=.5 * dx;
+			y=.1 * _div / 10.0;
+			_y=.1 * (_div + increment) / 10.;
+			glBegin(GL_POLYGON);
+			colorMethodAbsolute(dx).HSVtoRGBcolor();
+			glVertex3f(0 + x,-y,0);
+
+			colorMethodAbsolute(dx+increment).HSVtoRGBcolor();
+			glVertex3f(increment + x,-_y,0);
+			glVertex3f(increment + x,_y,0);
+
+			colorMethodAbsolute(dx).HSVtoRGBcolor();
+			glVertex3f(0 + x, y, 0);
+			glEnd();
+		}
+	char font[80];
+	//DRAW RASTER TEXT
+
+	div_MinColor->instead(-999,1.,1).HSVtoRGBcolor();
+	glRasterPos3f(0.00, 0.14, 0.00);
+	sprintf(font,"Min bound: %.3f",boundMin);
+	//div_MinColor->HSVtoRGBvec().print(font);
+	//colorMethod(0.).print(font);
+	//div_MinColor->print(font);
+	drawString(font);
+
+	div_MaxColor->instead(-999,1.,1).HSVtoRGBcolor();
+	glRasterPos3f(.5, 0.12, 0.00);
+	sprintf(font,"Max bound: %.3f",boundMax);
+	//div_MaxColor->HSVtoRGBvec().print(font);
+	drawString(font);
+
+
+
+	colorMethod(seenMin).instead(-999,-999,1).HSVtoRGBcolor();
+	glRasterPos3f(.5 * percentBetween(seenMin,boundMin,boundMax), 0.20, 0.00);
+	sprintf(font,"Visible min: %.3f",seenMin);
+	//colorMethod(seenMin).print(font);
+	drawString(font);
+	glBegin(GL_LINES);glVertex3f(.5* percentBetween(seenMin,boundMin,boundMax),-.1,0);glVertex3f(.5* percentBetween(seenMin,boundMin,boundMax),.20,0);glEnd();
+
+	//seenMax = .8;
+	colorMethod(seenMax).instead(-999,-999,1).HSVtoRGBcolor();
+	glRasterPos3f(.5 * percentBetween(seenMax,boundMin,boundMax), 0.17, 0.00);
+	sprintf(font,"Visible max: %.3f",seenMax);
+	drawString(font);
+	glBegin(GL_LINES);glVertex3f(.5* percentBetween(seenMax,boundMin,boundMax),-.1,0);glVertex3f(.5* percentBetween(seenMax,boundMin,boundMax),.17,0);glEnd();
+	}
+glMatrixMode( GL_PROJECTION ) ;
+glPopMatrix() ; // revert back to the matrix I had before.
+glMatrixMode( GL_MODELVIEW ) ;
+glPopMatrix() ;
+}
+
+void drawString(char* str)
+{
+	while(*str)
+	{
+	glutBitmapCharacter(GLUT_BITMAP_HELVETICA_10, *str);	
+	str++;
+	}
+}
+
+void reshape(int width, int height)
+{
+      tbReshape(width, height);
+	    //glMatrixMode(GL_PROJECTION);
+		//glFrustum (-30, 30, -30, 30, -30, 30);
+	    //glFrustum (-0.1, 0.1, -0.1, 0.1, .1, 12);
+   glutPostRedisplay();
+}
+
+
+void Keyboard(unsigned char key, int x, int y)
+{
+  switch(key)
+  {
+    case 27:   // esc	glutSpecialFunc(processSpecialKeys);
+		exit(0);
+		break;
+
+
+
+	//Choose a line!
+	case ';':
+		MODE_WhiteLine = 0;break;
+	case ':':
+		MODE_WhiteLine = 1;break;
+	case '1':
+		MODE_DrawFunc = 1;break;
+	case '2':
+		MODE_DrawFunc = 2;break;
+	case '3':
+		MODE_DrawFunc = 3;break;
+	case '4':
+		MODE_DrawFunc = 4;break;
+	case '5':
+		MODE_DrawFunc = 5;break;
+	case '6':
+		MODE_DrawFunc = 6;break;
+	case '7':
+		MODE_DrawFunc = 7;break;
+	case '8':
+		MODE_DrawFunc = 8;break;
+	case '9':
+		MODE_DrawFunc = 9;break;
+	case '0':
+		MODE_DrawFunc = 10;break;
+	case '`':case '~':
+		MODE_DrawFunc = 0;break;
+	case 'm':
+		div_Selected = div_MinColor;break;
+	case 'M':
+		div_Selected = div_MaxColor;break;
+	case '[':boundMin-=.005;break;
+	case '{':boundMin+=.005;if(boundMin+.005>=boundMax)boundMax+=.005;break;
+	case ']':boundMax-=.005;if(boundMin+.005>=boundMax)boundMin-=.005;break;
+	case '}':boundMax+=.005;break;
+	//The color changing bit!
+	case 't': MODE_Ten = 0; break;
+	case 'T': MODE_Ten = 1; break;
+	case 'h':
+		div_Selected->x -= .01;div_Selected->bindAll();
+		break;
+	case 'H':
+		div_Selected->x += .01;div_Selected->bindAll();
+		break;
+	case 'S':
+		div_Selected->y += .05;div_Selected->bindAll();
+		break;
+	case 's':
+		div_Selected->y -= .05;div_Selected->bindAll();
+		break;
+	case 'V':
+		div_Selected->z += .05;div_Selected->bindAll();
+		break;
+	case 'v':
+		div_Selected->z -= .05;div_Selected->bindAll();
+		break;
+	case 'd':
+		MODE_Color=2;break;
+	case 'f':
+		MODE_Color=1;break;
+	case 'g':
+		MODE_Color=3;break;
+
+	case 'j':
+			div_MinColor->set(0.,1,1);
+			div_MaxColor->set(1.,1,1);
+			break;
+	case 'k':
+			div_MinColor->set(0.,0.,0.);
+			div_MaxColor->set(0.,1,1);
+			break;
+	case 'l':
+			div_MinColor->set(0.,0.,0.);
+			div_MaxColor->set(0.,0.,1);
+			break;
+    default:
+	  break;
+  }
+  glutPostRedisplay();
+}
+
+
+
+void processSpecialKeys(int key, int xx, int yy)
+{
+switch (key) {
+	/*
+		case GLUT_KEY_LEFT :
+			angle -= 0.01f;
+			lx = sin(angle);
+			lz = -cos(angle);
+			break;
+		case GLUT_KEY_RIGHT :
+			angle += 0.01f;
+			lx = sin(angle);
+			lz = -cos(angle);
+			break;*/
+		case GLUT_KEY_UP :
+			camLookAt->plusequal(camLookAt->minus(*camPos).normalize());
+			break;
+		case GLUT_KEY_DOWN :		
+			camLookAt->plusequal(camPos->minus(*camLookAt).normalize());
+			break;
+		}
+  glutPostRedisplay();
+}
+
+
+void Mouse(int button, int state, int x, int y)
+{
+   //mouse_state = state;
+   mouseButton=button;
+
+   tbMouse(button, state, x, y);
+   glutPostRedisplay();
+}
+
+void Motion(int x, int y)
+{
+  tbMotion(x, y, mouseButton);
+  glutPostRedisplay();
+}
+
