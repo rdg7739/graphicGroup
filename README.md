@@ -1,4 +1,0 @@
-graphicGroup-
-=============
-
-graphic group project
